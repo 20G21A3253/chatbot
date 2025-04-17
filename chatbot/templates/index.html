@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        #chat-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        #chat-box {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+        }
+
+        .user-message {
+            color: #1a73e8;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .bot-message {
+            color: #333;
+            background-color: #e8eaf6;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+
+        #user-input {
+            width: 70%;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        /* ✅ Styled Send and Mic buttons */
+        .chat-btn {
+            padding: 10px 15px;
+            font-size: 16px;
+            margin-left: 5px;
+            cursor: pointer;
+            background-color: #4caf50; /* Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .chat-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatbot</h1>
+    <div id="chat-container">
+        <div id="chat-box">
+            <!-- Chat will be appended here -->
+        </div>
+        <input type="text" id="user-input" placeholder="Enter your message">
+        <button class="chat-btn" onclick="startVoiceRecognition()">🎤</button>
+        <button class="chat-btn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrfToken = getCookie('csrftoken');
+
+        function startVoiceRecognition() {
+            const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!recognition) {
+                alert("Speech recognition is not supported in this browser.");
+                return;
+            }
+
+            const recognitionInstance = new recognition();
+            recognitionInstance.lang = 'en-US';
+            recognitionInstance.onresult = function(event) {
+                const userInput = event.results[0][0].transcript;
+                document.getElementById('user-input').value = userInput;
+            };
+            recognitionInstance.start();
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+
+            if (userInput.trim() === '') return;
+
+            $('#chat-box').append(`<div class="user-message">User: ${userInput}</div>`);
+
+            $.ajax({
+                url: '/get_response/',
+                type: 'POST',
+                data: {
+                    'user_input': userInput,
+                    'csrfmiddlewaretoken': csrfToken
+                },
+                success: function(data) {
+                    const botResponse = data.response.replace(/\n/g, "<br>").replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+                    $('#chat-box').append(`<div class="bot-message">Bot: ${botResponse}</div>`);
+                    document.getElementById('user-input').value = '';
+                    $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log("Error:", errmsg);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
